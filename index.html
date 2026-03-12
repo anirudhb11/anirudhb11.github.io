@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
 
-      <!-- Global site tag (gtag.js- Google Analytics -->
+      <!-- Global site tag (gtag.js) - Google Analytics -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-71WGBZ8XFJ"></script>
         <script>
         window.dataLayer = window.dataLayer || [];
@@ -226,11 +226,11 @@
 
     .paper-row:nth-child(1) { animation-delay: 0.05s; }
     .paper-row:nth-child(2) { animation-delay: 0.1s; }
-    .paper-row:nth-child(3{ animation-delay: 0.15s; }
-    .paper-row:nth-child(4{ animation-delay: 0.2s; }
+    .paper-row:nth-child(3) { animation-delay: 0.15s; }
+    .paper-row:nth-child(4) { animation-delay: 0.2s; }
     .paper-row:nth-child(5) { animation-delay: 0.25s; }
     .paper-row:nth-child(6) { animation-delay: 0.3s; }
-    .paper-row:nth-child(7{ animation-delay: 0.35s; }
+    .paper-row:nth-child(7) { animation-delay: 0.35s; }
 
     /* ===== Name ===== */
     .name {
@@ -458,7 +458,7 @@
     }
 
     /* ===== Fixed Sidebar ===== */
-    @media (min-width: 768px{
+    @media (min-width: 768px) {
         .fixed-posi {
             position: fixed;
         }
@@ -502,10 +502,10 @@
       $(function () {
             $.each(document.images, function () {
                 var this_image = this;
-                var src = $(this_image).attr('src'|| '';
-                if (!src.length > 0{
-                    var lsrc = $(this_image).attr('lsrc'|| '';
-                    if (lsrc.length > 0{
+                var src = $(this_image).attr('src') || '';
+                if (!src.length > 0) {
+                    var lsrc = $(this_image).attr('lsrc') || '';
+                    if (lsrc.length > 0) {
                         var img = new Image();
                         img.src = lsrc;
                         $(img).on('load', function () {
