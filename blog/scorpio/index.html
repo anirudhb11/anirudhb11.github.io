@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-71WGBZ8XFJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-71WGBZ8XFJ');
+    </script>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="On the Limits of Test-Time Compute for Self-Evaluation">
+    <meta name="theme-color" content="#fffff8">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="../../images/nicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../images/nicons/favicon-16x16.png">
+
+    <title>On the Limits of Test-Time Compute for Self-Evaluation</title>
+
+    <script>
+      window.MathJax = { tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]] } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+
+    <style>
+      @font-face { font-family: "et-book"; src: url("../../fonts/et-book/et-book-roman-line-figures.woff") format("woff"); font-weight: normal; font-style: normal; font-display: swap; }
+      @font-face { font-family: "et-book"; src: url("../../fonts/et-book/et-book-display-italic-old-style-figures.woff") format("woff"); font-weight: normal; font-style: italic; font-display: swap; }
+      @font-face { font-family: "et-book"; src: url("../../fonts/et-book/et-book-bold-line-figures.woff") format("woff"); font-weight: bold; font-style: normal; font-display: swap; }
+
+      :root {
+        --paper: #fffff8;
+        --ink: #111;
+        --ink-soft: #444;
+        --ink-muted: #666;
+        --ink-faint: #888880;
+        --rule: #e4e4d6;
+        --hover: #f6f6ea;
+        --v1: #e8833a;            /* V1's colour in the paper's figures */
+        --correct: #3f9b7b;
+        --incorrect: #c8553d;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        margin: 0;
+        font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+        color: var(--ink);
+        background: var(--paper);
+        font-size: 20px;
+        line-height: 1.6;
+      }
+
+      a { color: inherit; }
+
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 64px 24px 96px;
+        display: grid;
+        grid-template-columns: 220px minmax(0, 680px);
+        gap: 64px;
+        justify-content: center;
+      }
+
+      /* --- Header --- */
+      .post-header { grid-column: 2; }
+
+      h1 {
+        font-weight: normal;
+        font-size: 2.6rem;
+        line-height: 1.15;
+        margin: 0 0 20px;
+        text-wrap: balance;
+      }
+
+      .meta { color: var(--ink-muted); font-size: 1rem; margin: 0; }
+      .meta a { text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .meta a:hover { color: var(--ink); border-bottom-color: var(--ink-faint); }
+      .links { margin-top: 6px; }
+
+      /* --- Table of contents --- */
+      .toc-rail { grid-column: 1; grid-row: 2; }
+
+      .toc-rail nav {
+        position: sticky;
+        top: 40px;
+        font-size: 0.85rem;
+        line-height: 1.35;
+      }
+
+      .toc-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 12px;
+      }
+
+      .toc ul { list-style: none; margin: 0; padding: 0; }
+      .toc li { margin: 0 0 10px; }
+      .toc ul ul { margin: 8px 0 0 12px; }
+      .toc ul ul li { margin-bottom: 6px; }
+
+      .toc a {
+        text-decoration: none;
+        color: var(--ink-faint);
+        display: block;
+      }
+
+      .toc a:hover, .toc a.active { color: var(--ink); }
+
+      .toc-inline { display: none; }
+
+      /* --- Body --- */
+      .post { grid-column: 2; grid-row: 2; min-width: 0; }
+
+      h2 {
+        font-weight: normal;
+        font-style: italic;
+        font-size: 1.7rem;
+        line-height: 1.25;
+        margin: 56px 0 16px;
+        text-wrap: balance;
+        scroll-margin-top: 24px;
+      }
+
+      h3 {
+        font-weight: normal;
+        font-style: italic;
+        font-size: 1.25rem;
+        margin: 32px 0 8px;
+        scroll-margin-top: 24px;
+      }
+
+      p { margin: 0 0 16px; }
+
+      /* Keeps subscripts (V1) from stretching the line they sit on. */
+      sub { font-size: 0.72em; line-height: 0; vertical-align: -0.28em; }
+
+      .placeholder { color: var(--ink-faint); font-style: italic; }
+      .sc { font-variant: small-caps; letter-spacing: 0.02em; }
+      figure img { display: block; max-width: 100%; height: auto; }
+      .note { color: var(--ink-muted); font-style: italic; }
+
+      figure { margin: 24px 0 32px; }
+
+      .figure-slot {
+        border: 1px dashed var(--ink-faint);
+        aspect-ratio: 16 / 9;
+        max-width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-faint);
+        font-size: 0.9rem;
+      }
+
+      figcaption { color: var(--ink-muted); font-size: 0.9rem; margin-top: 8px; }
+
+      pre {
+        background: var(--hover);
+        border: 1px solid var(--rule);
+        padding: 16px;
+        overflow-x: auto;
+        font-size: 0.8rem;
+        line-height: 1.5;
+      }
+
+      /* --- Interactive charts --- */
+      .chart { position: relative; }
+      .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+      .chart text { font-family: inherit; fill: var(--ink-muted); }
+      .chart .axis line, .chart .axis path { stroke: var(--rule); }
+      .chart .grid line { stroke: var(--rule); stroke-dasharray: 2 4; }
+      .chart .series path { fill: none; stroke-width: 2.5; }
+      .chart .gap-label { font-size: 15px; font-weight: bold; }
+      .chart-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        font-size: 0.85rem;
+        color: var(--ink-muted);
+        margin-bottom: 8px;
+        font-variant-numeric: tabular-nums;
+      }
+      .chart-controls button {
+        font: inherit;
+        color: var(--ink);
+        background: none;
+        border: 1px solid var(--rule);
+        padding: 2px 10px;
+        cursor: pointer;
+      }
+      .chart-controls { justify-content: flex-end; }
+      .chart-controls:has(.legend) { display: grid; grid-template-columns: 1fr auto 1fr; }
+      .chart-controls .legend { grid-column: 2; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; }
+      .chart-controls:has(.legend) .replay { grid-column: 3; justify-self: end; }
+      .chart-controls .legend > span { display: inline-flex; align-items: center; gap: 6px; }
+      .swatch { display: inline-block; width: 18px; height: 3px; }
+      .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; }
+      .swatch.dashed { background: repeating-linear-gradient(90deg, var(--ink-soft) 0 5px, transparent 5px 8px); }
+      .swatch.dotted { background: repeating-linear-gradient(90deg, var(--ink-faint) 0 2px, transparent 2px 5px); }
+      .chart-controls button { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-muted); }
+      .chart-controls button svg { width: 12px; height: 12px; }
+      .chart-controls button:hover { background: var(--hover); color: var(--ink); }
+      .chart-controls label { display: flex; align-items: center; gap: 8px; }
+      .chart-controls input { accent-color: var(--ink-soft); }
+      .chart-tip {
+        position: absolute;
+        pointer-events: none;
+        background: var(--paper);
+        border: 1px solid var(--rule);
+        padding: 4px 8px;
+        font-size: 0.8rem;
+        line-height: 1.35;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      hr { border: none; border-top: 1px solid var(--rule); margin: 56px 0 0; }
+
+      @media (max-width: 900px) {
+        .page { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 40px; }
+        .post-header, .post { grid-column: 1; }
+        .post { grid-row: 3; }
+        .toc-rail { display: none; }
+        .toc-inline {
+          display: block;
+          grid-row: 2;
+          margin: 28px 0 8px;
+          font-size: 0.95rem;
+          border-top: 1px solid var(--rule);
+          border-bottom: 1px solid var(--rule);
+          padding: 10px 0;
+        }
+        .toc-inline summary { cursor: pointer; color: var(--ink-muted); }
+        .toc-inline nav { margin-top: 12px; }
+        h1 { font-size: 2rem; }
+        body { font-size: 18px; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+      <header class="post-header">
+        <h1>On the Limits of Test-Time Compute for Self-Evaluation</h1>
+        <p class="meta"><a href="../../">Anirudh Buvanesh</a> · November 2026 · 10 min read</p>
+        <!-- TODO: swap the two Drive paper links for the arXiv URL -->
+        <p class="meta links"><a href="https://arxiv.org/abs/2611.00350">Paper</a> · <a href="https://github.com/anirudhb11/scorpio">Code</a></p>
+      </header>
+
+      <aside class="toc-rail" aria-label="Contents">
+        <nav class="toc">
+          <div class="toc-label">Contents</div>
+          <ul>
+            <li><a href="#selection-does-not-scale">Generating more solutions helps, but selection struggles to keep up</a></li>
+            <li><a href="#anatomy">Anatomy of a selection method</a></li>
+            <li><a href="#ranking-error">Ranking error and its bias–variance decomposition</a></li>
+            <li><a href="#what-it-enables">What does the bias–variance decomposition enable?</a>
+              <ul>
+                <li><a href="#how-many">How many candidates should go in the context?</a></li>
+                <li><a href="#how-grouped">How should candidates be grouped?</a></li>
+              </ul>
+            </li>
+            <li><a href="#top1">Tying back to top-1 accuracy</a></li>
+            <li><a href="#simple-methods-scale">Irreducible bias does not go away with scale</a></li>
+            <li><a href="#other-algorithms"><span class="sc">Scorpio</span> extends to other test-time scaling algorithms</a>
+              <ul>
+                <li><a href="#tree-search">Tree search</a></li>
+                <li><a href="#aggregation">Aggregation</a></li>
+              </ul>
+            </li>
+            <li><a href="#limitations">Limitations</a></li>
+            <li><a href="#conclusion">Conclusion</a></li>
+            <li><a href="#acknowledgements">Acknowledgements</a></li>
+            <li><a href="#citation">Citation</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <details class="toc-inline">
+        <summary>Table of contents</summary>
+        <nav class="toc"></nav>
+      </details>
+
+      <article class="post">
+        <p>Sampling multiple solutions from a language model improves the chance of getting at least one correct solution, i.e., pass@N goes up with N. But how do we <em>select</em> the correct one? A common approach has been to spend test-time compute on self-verification, where the model is repeatedly asked to score its generations and then the highest-scoring solution is picked. While this improves the selection accuracy, the accuracy often plateaus well below pass@N.</p>
+        <p>In our recent work, <em>On the Limits of Test-Time Compute for Self-Evaluation</em>, we ask why models struggle to select their own correct solutions. We examine this question through the lens of bias and variance in the LLM's judgements, and find that as inference compute increases, the model's judgements become more consistent (variance decreases), but can still remain incorrect (bias remains). In this post, we go over how this perspective helps analyze and simplify design choices in recent test-time scaling methods, leading to our approach, <span class="sc">Scorpio</span>.</p>
+
+        <p class="note">Note: This blog is a more informal presentation of the work. For more technical details we refer the reader to the <a href="https://arxiv.org/abs/2611.00350">paper on arXiv</a>.</p>
+
+        <h2 id="selection-does-not-scale">Generating more solutions helps, but selection struggles to keep up</h2>
+        <p>Frontier models like GPT-6 Astra and Fable-5.1 are also more likely to produce a correct solution when given multiple attempts. The figure below shows results on Terminal-Bench 4, where moving from one attempt to five increases success rates by ~13–21 percentage points. However, realizing these gains requires selecting a correct solution from the sampled candidates.</p>
+        <figure class="chart" id="fig-passk">
+          <div class="chart-controls">
+            <button type="button" class="replay"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 6a4 4 0 1 1-1.2-2.85"/><path d="M9.4 1.2v2.4H7"/></svg>Replay</button>
+          </div>
+          <svg viewBox="0 0 680 380" role="img" aria-label="pass@k against k for GPT-6 Astra and Fable 5.1 on Terminal-Bench 4"></svg>
+          <div class="chart-tip" hidden></div>
+          <figcaption>On <a href="https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/4?tab=leaderboard&amp;leaderboard=4-0-0">Terminal-Bench 4</a> (agentic coding benchmark), GPT-6 Astra (max effort) and Fable 5.1 (max effort) gain 13.0 and 20.9 points when moving from pass@1 to pass@5.</figcaption>
+        </figure>
+        <p>To bridge this gap, several selection methods have been proposed. At a high level, these methods ask a language model to score a set of candidate solutions multiple times. The scores from different calls are combined, for example by averaging them. The candidates are then ranked by these scores, and the top-ranked solution is selected. More compute allows for more rounds of evaluation.</p>
+        <p>Below, we show how the selection accuracy of a recent self-verification method, V<sub>1</sub> (<a href="https://arxiv.org/abs/2603.04304">Singh et al.</a>), changes as the number of sampled solutions increases. As the number of candidates grows, the gap between selection accuracy and pass@N widens.</p>
+        <figure class="chart" id="fig-v1gap">
+          <div class="chart-controls">
+            <div class="legend">
+              <span><i class="swatch" style="background:var(--v1)"></i><span>V<sub>1</sub></span></span>
+              <span><i class="swatch dashed"></i>pass@N</span>
+              <span><i class="swatch dotted"></i>pass@1</span>
+            </div>
+            <button type="button" class="replay"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 6a4 4 0 1 1-1.2-2.85"/><path d="M9.4 1.2v2.4H7"/></svg>Replay</button>
+          </div>
+          <svg viewBox="0 0 680 380" role="img" aria-label="V1 selection accuracy against pass@N for N = 8, 32 and 128 on LiveCodeBench v6 with GPT-OSS-20B"></svg>
+          <div class="chart-tip" hidden></div>
+          <figcaption>On LiveCodeBench v6 (LCBv6) with GPT-OSS-20B, the gap between pass@N and the solution V<sub>1</sub> selects widens from 5 to 11 points as N grows from 8 to 128. We run V<sub>1</sub> until accuracy plateaus.</figcaption>
+        </figure>
+
+        <h2 id="anatomy">Anatomy of a selection method</h2>
+        <p>Before understanding why selection accuracy plateaus below pass@N, we describe how recent work on self-verification scales test-time compute.</p>
+        <p>Several works have proposed spending inference compute on self-verification to select from a pool of sampled solutions (<a href="https://arxiv.org/abs/2607.05391">Kwok et al., 2026</a>; <a href="https://arxiv.org/abs/2604.16529">Kim et al., 2026</a>; <a href="https://arxiv.org/abs/2603.04304">Singh et al., 2026</a>). The figure below shows a pool containing both <span style="color:var(--correct)">correct</span> and <span style="color:var(--incorrect)">incorrect</span> solutions that different methods score in different ways. Candidates can be scored one at a time: the model sees the problem and a single solution, and assigns it a score based on correctness. Alternatively, candidates can be scored in pairs using tournament-style methods that pair candidates with similar scores (<a href="https://arxiv.org/abs/2603.04304">Singh et al., 2026</a>).</p>
+        <p>This scoring is repeated over several rounds, with the ranking refined in each round. Once the final round is done, the highest-scoring candidate is chosen. In this work, we focus on two design choices of the scorer: (i) how many candidates the judge sees in each evaluation and (ii) how these candidates are grouped. Should they be grouped randomly, or should candidates with similar scores be placed together in a judge call?</p>
+        <figure class="chart" id="fig-anatomy">
+          <div class="chart-controls">
+            <div class="legend">
+              <span><i class="dot" style="background:var(--correct)"></i>correct</span>
+              <span><i class="dot" style="background:var(--incorrect)"></i>incorrect</span>
+            </div>
+            <button type="button" class="replay"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 6a4 4 0 1 1-1.2-2.85"/><path d="M9.4 1.2v2.4H7"/></svg>Replay</button>
+          </div>
+          <svg viewBox="0 0 900 295" role="img" aria-label="Four candidate solutions are scored repeatedly; their averaged scores are re-ranked after each round and the top-ranked one is selected"></svg>
+          <figcaption>Inference compute is spent on repeatedly scoring candidates and then picking the highest-scoring one.</figcaption>
+        </figure>
+        <h2 id="ranking-error">Ranking error and its bias–variance decomposition</h2>
+        <p>The goal of a scoring procedure is to rank correct candidates above incorrect ones. To measure how well a model ranks its own solutions, we count the number of times an incorrect candidate receives a higher score than a correct one. In the figure above, round 1 has three misrankings: #2 is ranked above both #3 and #1, and #4 is ranked above #1. By the last round, only one misranking remains.</p>
+        <p>Measuring ranking error as the number of misrankings, we show that this error decomposes into a bias term and a variance term (refer to Sec. 4 in the <a href="https://arxiv.org/abs/2611.00350">paper</a>). Intuitively, the bias term measures the fraction of times an incorrect solution is ranked above a correct solution when the scoring procedure is repeated multiple times, and the variance term measures how often the language model changes its judgements. When asked to score once, the LLM might rank #2 above #1, but when asked again, it might prefer #1. Notice that both bias and variance are functions of inference compute. We next examine how each term changes as a function of inference compute.</p>
+        <p class="note"><strong>Note:</strong> Ranking error penalizes mistakes throughout the ranking, while verification only requires the top-ranked candidate to be correct. As we discuss <a href="#top1">later</a>, the trends we observe in ranking error also hold for top-1 accuracy. Moreover, other test-time scaling algorithms depend on more than the top-ranked candidate. In search and aggregation, errors can compound: pruning a promising partial solution or retaining a poor candidate for aggregation affects subsequent generations.</p>
+
+        <h2 id="what-it-enables">What does the bias–variance decomposition enable?</h2>
+        <p>We now discuss how design decisions, such as the number of candidates included in the context and how they are grouped, affect ranking error and its associated bias and variance terms.</p>
+        <h3 id="how-many">How many candidates should go in the context?</h3>
+        <p>We vary the number of candidates scored together, $K \in \{1,2,4,8\}$. Given $N=128$ candidates, they are randomly split into $N/K$ groups, and the candidates within each group are scored jointly. The scoring procedure is repeated over several rounds, with new random groups formed in each round. Finally, each candidate’s score is obtained by averaging its scores across rounds. This procedure is our method, which we call <strong>S</strong>coring <strong>C</strong>andidates <strong>O</strong>ver <strong>R</strong>andom <strong>P</strong>art<strong>I</strong>ti<strong>O</strong>ns (<span class="sc">Scorpio</span>).</p>
+        <figure>
+          <img src="figs/biasvar_kladder.svg" alt="Bias squared, variance, and ranking error versus cost per question for K = 1, 2, 4, 8 on HMMT 25 and LCBv6 with GPT-OSS-20B">
+          <figcaption>Squared bias, variance, and ranking error as inference compute grows, for group sizes $K = 1$ (pointwise), $2$, $4$, and $8$, using GPT-OSS-20B on HMMT (math) and LCBv6 (code). Larger groups reduce variance faster, but can hurt bias.</figcaption>
+        </figure>
+        <p><strong>Variance reduces with compute, but ranking bias plateaus.</strong> From the above figure, we see that variance decreases as inference compute increases, while bias decreases initially before approaching a plateau. In other words, at high inference compute, rankings become more stable (variance approaches zero), but there exist incorrect solutions that receive higher scores than correct ones. This irreducible bias keeps selection methods from closing the gap to pass@N.</p>
+        <p><strong>Joint evaluation reduces ranking error.</strong> Similar to <a href="https://arxiv.org/abs/2603.04304">Singh et al. (2026)</a> and <a href="https://arxiv.org/abs/2607.05391">Kwok et al. (2026)</a>, we find that evaluating candidates together improves ranking quality over evaluating them in isolation (pointwise, $K=1$). Pointwise scoring has higher bias than joint evaluation, suggesting that comparison among multiple candidates helps the model distinguish correct solutions from incorrect ones.</p>
+        <p><strong>Larger groups reduce variance, but can hurt bias.</strong> Having multiple candidates in the context also reduces variance faster because fewer calls ($N/K$) are needed per scoring round, allowing each candidate's score to be averaged over more evaluations within the same cost budget. However, these variance reductions can come at the expense of bias: on LCBv6, increasing the group size to $K=8$ raises bias, potentially because comparing more candidates in a single context is harder. We therefore use $K=4$ as the default to balance these effects.</p>
+        <h3 id="how-grouped">How should candidates be grouped?</h3>
+        <p>In the procedure above, we form groups randomly. However, recent algorithms have also proposed tournament strategies for building groups. We therefore compare <span class="sc">Scorpio</span>'s scoring with V<sub>1</sub>'s (<a href="https://arxiv.org/abs/2603.04304">Singh et al., 2026</a>) tournament-based pairing and pointwise scoring.</p>
+        <figure>
+          <img src="figs/biasvar_methods.svg" alt="Bias squared, variance, and ranking error versus cost per question for pointwise, V1 pairwise, and Scorpio (K=4) on HMMT 25 and LCBv6 with GPT-OSS-20B">
+          <figcaption>Squared bias, variance, and ranking error as inference compute grows, for pointwise scoring, V<sub>1</sub>'s tournament-based pairwise scoring, and <span class="sc">Scorpio</span> ($K = 4$), using GPT-OSS-20B on HMMT (math) and LCBv6 (code). <span class="sc">Scorpio</span> reduces variance faster, while V<sub>1</sub>'s pairing can lower bias.</figcaption>
+        </figure>
+        <p><strong>Random grouping reduces variance faster, while tournament pairing can lower bias.</strong> From the figure above, we see that <span class="sc">Scorpio</span> achieves similar or lower ranking error (right) compared to V<sub>1</sub> and pointwise scoring. However, its bias–variance decomposition differs from that of V<sub>1</sub>, which pairs similarly scoring candidates with each other. V<sub>1</sub> consistently shows higher variance than <span class="sc">Scorpio</span>, likely because these comparisons are harder than the random comparisons that <span class="sc">Scorpio</span> makes. However, V<sub>1</sub>'s strategy can help lower bias, as seen on LCBv6, where it attains lower bias than <span class="sc">Scorpio</span>.</p>
+
+        <h2 id="top1">Tying back to top-1 accuracy</h2>
+        <p>Until now, we have seen that <span class="sc">Scorpio</span> can achieve similar or lower ranking error on a few datasets. However, as highlighted above, ranking error penalizes mistakes throughout the ranking, while verification only requires the top-ranked candidate to be correct. To ensure that the benefits in ranking error translate to top-1 accuracy, we compare <span class="sc">Scorpio</span>, V<sub>1</sub>, and pointwise scoring across two models and three datasets below, and see that <span class="sc">Scorpio</span> scales better than the baselines while being arguably simpler.</p>
+        <figure>
+          <img src="figs/top1_methods.svg" alt="Top-1 accuracy versus cost per question for pointwise, V1 pairwise, and Scorpio (K=4) with Qwen3.5-4B and GPT-OSS-20B on HMMT 25, RG Games, and LCBv6">
+          <figcaption>Top-1 accuracy as inference compute grows, for pointwise scoring, V<sub>1</sub>'s tournament-based pairwise scoring, and <span class="sc">Scorpio</span> ($K = 4$), using Qwen3.5-4B (top) and GPT-OSS-20B (bottom) on HMMT (math), RG Games (puzzles), and LCBv6 (code). Results are averaged over $20$ seeds; shaded regions show $95\%$ confidence intervals.</figcaption>
+        </figure>
+
+        <h2 id="simple-methods-scale">Irreducible bias does not go away with scale</h2>
+        <p>To examine whether these limitations persist in a more capable model, we evaluate Gemini-3.1-Pro on Terminal-Bench-2.1. We generate $N = 8$ responses per task and use <span class="sc">Scorpio</span> to select the best one. As seen from the figure below, <span class="sc">Scorpio</span>'s selection accuracy plateaus $9$ percentage points below pass@8 (left). Similar to the experiments above, variance reduces with compute, but ranking bias plateaus (middle and right). This irreducible bias accounts for the gap between <span class="sc">Scorpio</span>'s selection accuracy and pass@8.</p>
+        <figure>
+          <img src="figs/tb_scale.svg" alt="Top-1 accuracy, squared bias, and variance versus cost per task for Scorpio with Gemini-3.1-Pro on Terminal-Bench-2.1">
+          <figcaption>Top-1 accuracy, squared bias, and variance as inference compute grows, for <span class="sc">Scorpio</span> ($K = 4$) selecting among $N = 8$ candidates from Gemini-3.1-Pro on Terminal-Bench-2.1. Top-1 accuracy plateaus about $9$ percentage points below pass@8; variance keeps falling while bias plateaus. Results are averaged over $8$ seeds.</figcaption>
+        </figure>
+
+        <h2 id="other-algorithms"><span class="sc">Scorpio</span> extends to other test-time scaling algorithms</h2>
+        <p>So far, we have seen how <span class="sc">Scorpio</span> can improve the selection of the correct solution from a pool of candidate solutions. In the sections below, we show how <span class="sc">Scorpio</span> can improve the scaling of tree search and aggregation-based methods.</p>
+        <h3 id="tree-search">Tree search</h3>
+        <p>To scale test-time compute in tree search, we follow a setup similar to DeepConf (<a href="https://arxiv.org/abs/2508.15260">Fu et al., 2025</a>), where partial trajectories are evaluated to prune unpromising paths. Every 2K tokens, the generating model itself scores groups of partial trajectories with <span class="sc">Scorpio</span> and prunes the lowest-scoring ones. We compare against DeepConf, which estimates the value of a partial solution from the model's token probabilities, and ThinkPRM (<a href="https://arxiv.org/abs/2504.16828">Khalifa et al., 2025</a>), a generative process reward model trained on verification trajectories generated by a larger model. Overall, <span class="sc">Scorpio</span> scales similarly to or better than both approaches, without any training or external model. Test-time compute is varied through the number of starting solutions, $N \in \{8, 32, 128\}$ for <span class="sc">Scorpio</span> and ThinkPRM and $N \in \{16, 64, 256\}$ for DeepConf, and cost includes both input and output tokens.</p>
+        <figure>
+          <img src="figs/tree_search.svg" alt="Top-1 accuracy versus cost per question for Scorpio, DeepConf, and ThinkPRM-1.5B in tree search with GPT-OSS-20B on AIME 2024 and LCBv6">
+          <figcaption>Top-1 accuracy as inference compute grows in tree search, for <span class="sc">Scorpio</span>, DeepConf, and ThinkPRM-1.5B, using GPT-OSS-20B on AIME 2024 (math) and LCBv6 (code). On LCBv6, <span class="sc">Scorpio</span> exceeds the strongest baseline's peak accuracy by $10$ percentage points.</figcaption>
+        </figure>
+        <h3 id="aggregation">Aggregation</h3>
+        <p>We now show how selecting which candidates to aggregate from can significantly improve the scaling of aggregation-based methods. We consider Recursive Self-Aggregation (RSA; <a href="https://arxiv.org/abs/2509.26626">Venkatraman et al., 2025</a>) and add a selection step between successive rounds, so that aggregation sets are built only from the top-scoring candidates. Following <a href="https://arxiv.org/abs/2603.04304">Singh et al. (2026)</a>, we use <span class="sc">Scorpio</span> to select the top $N/2$ candidates and build the $N$ aggregation sets from them. As the figure below shows, selection fixes RSA's negative scaling trend: without selection, RSA's accuracy decreases as $N$ increases. For a discussion of why this happens, see Sec. 5.3 of the <a href="https://arxiv.org/abs/2611.00350">paper</a>!</p>
+        <figure>
+          <img src="figs/rsa_legend.svg" alt="Legend: RSA and RSA + Scorpio">
+          <img src="figs/rsa_scaling.svg" alt="Pass@1 versus total cost for RSA and RSA + Scorpio with N = 8, 32, 128 on LCBv6 with GPT-OSS-20B">
+          <figcaption>Pass@1 across 10 aggregation rounds for RSA and RSA + <span class="sc">Scorpio</span>, using GPT-OSS-20B on LCBv6. Compute is increased by growing the number of initial candidates in the pool from $N = 8$ to $N = 128$. Cost includes both aggregation and selection, so the RSA + <span class="sc">Scorpio</span> curves (green) are shifted to the right.</figcaption>
+        </figure>
+
+        <h2 id="limitations">Limitations</h2>
+        <p>Despite <span class="sc">Scorpio</span>'s improved test-time scaling, it does not eliminate bias in rankings, as a result of which a significant gap remains between its selection accuracy and the oracle accuracy, pass@N. Addressing this residual bias remains an important direction for realizing the full benefit of sampling multiple candidates.</p>
+
+        <h2 id="conclusion">Conclusion</h2>
+        <p>In this work, we introduced a bias-variance decomposition to analyze how well LLMs evaluate their own solutions. We found that increasing test-time compute reduces variance, while irreducible ranking bias limits further improvements in selection accuracy. Using this decomposition, we identified strengths and weaknesses of test-time scaling algorithms and introduced <span class="sc">Scorpio</span>, a simple strategy that jointly scores candidates over random partitions. This strategy is effective across multiple test-time scaling settings, models, and benchmarks. More broadly, the decomposition provides a novel perspective on compute and algorithmic design choices and encourages future test-time scaling methods to improve judgments by reducing bias, variance, or both. A preliminary experiment in Appendix C.5 of our <a href="https://arxiv.org/abs/2611.00350">paper</a> points to one such direction: replacing self-evaluation with another model can reduce ranking bias.</p>
+
+        <hr>
+        <h2 id="acknowledgements">Acknowledgements</h2>
+        <p>A big thanks to all my coauthors, without whom this effort wouldn't have been possible: Khaled, Sujin, Johan, Morgane, Samuel, Michael, Laurent, and Aaron! The format of this blog was heavily inspired by Michael Noukhovitch's blog post, <a href="https://mnoukhov.github.io/posts/ngu/"><em>Learning to Solve Hard Problems in RL for LLMs by Never Giving Up</em></a>.</p>
+        <p>All graphs and animations were made by Opus 5.5, and the writing was polished by GPT-6-Astra.</p>
+
+        <h2 id="citation">Citation</h2>
+<pre>@misc{buvanesh2026scorpio,
+	title = {On the Limits of Test-Time Compute for Self-Evaluation},
+	url = {https://arxiv.org/abs/2611.00350},
+	author = {Buvanesh, Anirudh and Rouissi, Khaled and Yun, Sujin and Obando-Ceron, Johan and Moss, Morgane M and Lavoie, Samuel and Noukhovitch, Michael and Charlin, Laurent and Courville, Aaron},
+	month = nov,
+	year = {2026},
+}</pre>
+      </article>
+    </div>
+
+    <script>
+      // The narrow-screen table of contents reuses the rail's list.
+      document.querySelector(".toc-inline nav").innerHTML =
+        document.querySelector(".toc-rail ul").outerHTML;
+
+      // Highlight the rail entry for the section being read.
+      const links = [...document.querySelectorAll(".toc-rail a")];
+      const sections = links.map(a => document.querySelector(a.getAttribute("href")));
+      const onScroll = () => {
+        let current = 0;
+        sections.forEach((s, i) => { if (s.getBoundingClientRect().top < 120) current = i; });
+        links.forEach((a, i) => a.classList.toggle("active", i === current));
+      };
+      document.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+
+      // --- Shared chart helpers ---
+      const NS = "http://www.w3.org/2000/svg";
+      const svgMaker = svg => (tag, attrs, parent = svg) => {
+        const e = document.createElementNS(NS, tag);
+        for (const [a, v] of Object.entries(attrs)) e.setAttribute(a, v);
+        parent.appendChild(e);
+        return e;
+      };
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+      // Steps render(k) from k = 1 to `last`: each step the chart moves to the
+      // next point (MOVE ms), then holds there (HOLD ms) so the numbers can be
+      // read. Plays each time the figure scrolls into view, rewinds once it is
+      // fully off screen, and replays from the button. At rest it shows `last`.
+      function autoplay(fig, render, last, MOVE = 600, HOLD = 1100) {
+        let frame = null;
+        const play = () => {
+          cancelAnimationFrame(frame);
+          if (reduced) return render(last);
+          let t0 = null;
+          const step = now => {
+            if (t0 === null) t0 = now;
+            const elapsed = now - t0 - HOLD;           // hold at k = 1 first
+            const seg = Math.floor(Math.max(elapsed, 0) / (MOVE + HOLD));
+            const into = Math.max(elapsed, 0) - seg * (MOVE + HOLD);
+            const k = Math.min(last, 1 + seg + ease(Math.min(1, into / MOVE)) * (elapsed > 0));
+            render(k);
+            if (k < last) frame = requestAnimationFrame(step);
+          };
+          frame = requestAnimationFrame(step);
+        };
+        fig.querySelector(".replay").addEventListener("click", play);
+        render(last);
+        let armed = true;
+        new IntersectionObserver(([e]) => {
+          if (e.intersectionRatio >= 0.5 && armed) { armed = false; play(); }
+          else if (!e.isIntersecting && !reduced) { armed = true; cancelAnimationFrame(frame); render(1); }
+        }, { threshold: [0, 0.5] }).observe(fig);
+      }
+
+      // Places a tooltip next to an SVG point given in viewBox units.
+      function showTip(fig, svg, W, px, py, html) {
+        const tip = fig.querySelector(".chart-tip");
+        const scale = svg.getBoundingClientRect().width / W;
+        tip.innerHTML = html;
+        tip.hidden = false;
+        tip.style.left = (px * scale + 12) + "px";
+        tip.style.top = (py * scale + svg.offsetTop - 12) + "px";
+      }
+      const hideTip = fig => { fig.querySelector(".chart-tip").hidden = true; };
+
+      // Anatomy of a selection method: a schematic, not data. Four candidates
+      // (1 and 3 correct) are scored round after round. Each round moves the
+      // ranked list one step right along the compute axis, re-sorted by the
+      // averaged scores so far, and leaves a faded copy of the previous list.
+      (() => {
+        const fig = document.getElementById("fig-anatomy");
+        const svg = fig.querySelector(":scope > svg");
+        const el = svgMaker(svg);
+        const css = getComputedStyle(document.documentElement);
+        const tok = name => css.getPropertyValue(name).trim();
+        const C = { ok: tok("--correct"), bad: tok("--incorrect"), ink: tok("--ink"), muted: tok("--ink-muted"), faint: tok("--ink-faint"), rule: tok("--rule") };
+        const IDS = [1, 2, 3, 4];
+        const correct = { 1: true, 2: false, 3: true, 4: false };
+        const colour = id => correct[id] ? C.ok : C.bad;
+
+        // Stage 0 is the unscored pool; stages 1-3 are ranked lists placed
+        // further right as compute grows. Scores set bar lengths only.
+        const stages = [
+          { score: { 1: 0, 2: 0, 3: 0, 4: 0 } },
+          { label: "Round 1", x: 228, score: { 1: 0.45, 2: 0.80, 3: 0.70, 4: 0.60 } },
+          { label: "Round 2", x: 458, score: { 1: 0.45, 2: 0.75, 3: 0.90, 4: 0.62 } },
+          { label: "Round M", x: 718, score: { 1: 0.65, 2: 0.80, 3: 0.95, 4: 0.45 } },
+        ];
+        stages.forEach(st => st.order = [...IDS].sort((a, b) => st.score[b] - st.score[a] || a - b));
+        const POOL = { 1: [40, 114], 2: [80, 114], 3: [40, 158], 4: [80, 158] };
+        const R = 13, BAR_GAP = 19, BAR_MAX = 70, MID = 136;
+        const rowY = r => 70 + r * 44;
+        const pos = (s, id) => s === 0 ? POOL[id] : [stages[s].x, rowY(stages[s].order.indexOf(id))];
+
+        const candidate = (id, parent) => {
+          const g = el("g", {}, parent);
+          const bar = el("rect", { x: BAR_GAP, y: -6, height: 12, rx: 3, fill: colour(id), "fill-opacity": 0.55 }, g);
+          el("circle", { r: R, fill: colour(id) }, g);
+          const t = el("text", { y: 5, "text-anchor": "middle", "font-size": 14 }, g);
+          t.style.fill = "#fff"; t.textContent = id;
+          const mark = el("text", { y: 5, "font-size": 13 }, g);
+          mark.style.fill = colour(id); mark.textContent = correct[id] ? "✓" : "✗";
+          return { id, g, bar, mark };
+        };
+        const place = (c, [cx, cy], score, showMark) => {
+          const w = BAR_MAX * score;
+          c.g.setAttribute("transform", `translate(${cx},${cy})`);
+          c.bar.setAttribute("width", w);
+          c.mark.setAttribute("x", BAR_GAP + w + 5);
+          c.mark.style.opacity = showMark ? 1 : 0;
+        };
+
+        // The pool stays where it is; the moving copies start on top of it.
+        IDS.forEach(id => place(candidate(id), POOL[id], 0, false));
+
+        // Score boxes sit between stages; each lights up during its round.
+        const arrow = (x1, x2) => {
+          el("line", { x1, x2: x2 - 5, y1: MID, y2: MID, stroke: C.muted, "stroke-width": 1.2 });
+          el("path", { d: `M${x2},${MID} l-7,-4 v8 z`, fill: C.muted });
+        };
+        const boxes = [[112, 192], [345, 425], [605, 685]].map(([x1, x2]) => {
+          const rect = el("rect", { x: x1, y: MID - 22, width: x2 - x1, height: 44, rx: 7, fill: C.ink, "fill-opacity": 0, stroke: C.ink, "stroke-width": 1.4 });
+          const label = el("text", { x: (x1 + x2) / 2, y: MID + 5, "text-anchor": "middle", "font-size": 16 });
+          label.textContent = "Score";
+          return { rect, label };
+        });
+        arrow(97, 110); arrow(194, 211); arrow(327, 343); arrow(427, 441); arrow(687, 701);
+        el("text", { x: 578, y: MID + 5, "text-anchor": "middle", "font-size": 18 }).textContent = "⋯";
+
+        const stageLabels = stages.slice(1).map(st => {
+          const t = el("text", { x: st.x - R, y: 40, "font-size": 14 });
+          t.textContent = st.label;
+          return t;
+        });
+
+        // Faded copies left behind at rounds 1 and 2, then the moving list.
+        const ghosts = [1, 2].map(s => {
+          const g = el("g", {});
+          IDS.forEach(id => place(candidate(id, g), pos(s, id), stages[s].score[id], true));
+          return g;
+        });
+        const moving = IDS.map(id => candidate(id));
+        const ring = el("circle", { cx: stages[3].x, cy: rowY(0), r: R + 5, fill: "none", stroke: C.ink, "stroke-width": 1.4 });
+        const picked = el("text", { x: stages[3].x - R - 9, y: rowY(0) + 5, "text-anchor": "end", "font-size": 13 });
+        picked.style.fill = C.ink; picked.textContent = "selected →";
+
+        // After M rounds, incorrect 2 still sits above correct 1.
+        const miss = el("g", {});
+        const BX = stages[3].x + BAR_GAP + BAR_MAX * 0.8 + 24;
+        el("path", { d: `M${BX},${rowY(1)} h6 V${rowY(2)} h-6`, fill: "none", stroke: C.bad, "stroke-width": 1.3 }, miss);
+        const missText = el("text", { x: BX + 11, y: (rowY(1) + rowY(2)) / 2 + 4, "font-size": 13 }, miss);
+        missText.style.fill = C.bad; missText.textContent = "misranked";
+
+        // Inference-compute axis, with a tick under each round.
+        const AX0 = 20, AX1 = 828, AY = 248;
+        el("line", { x1: AX0, x2: AX1, y1: AY, y2: AY, stroke: C.rule, "stroke-width": 3 });
+        el("path", { d: `M${AX1 + 12},${AY} l-12,-6 v12 z`, fill: C.rule });
+        stages.slice(1).forEach(st => el("line", { x1: st.x, x2: st.x, y1: AY - 6, y2: AY + 6, stroke: C.faint, "stroke-width": 1.4 }));
+        const progress = el("line", { x1: AX0, y1: AY, y2: AY, stroke: C.faint, "stroke-width": 3 });
+        el("text", { x: (AX0 + AX1) / 2, y: 280, "text-anchor": "middle", "font-size": 15 }).textContent = "Inference compute";
+
+        const lerp = (a, b, f) => a + (b - a) * f;
+        // k runs from 1 (pool only) to 4 (after many rounds).
+        function render(k) {
+          const i = Math.min(Math.floor(k + 1e-9), 4) - 1, f = i >= 3 ? 0 : k - 1 - i;
+          const from = i, to = Math.min(i + 1, 3);
+          moving.forEach(c => {
+            const [x0, y0] = pos(from, c.id), [x1, y1] = pos(to, c.id);
+            place(c, [lerp(x0, x1, f), lerp(y0, y1, f)],
+                  lerp(stages[from].score[c.id], stages[to].score[c.id], f), from > 0 || f > 0.6);
+          });
+          boxes.forEach((b, j) => {
+            const glow = j === i && f > 1e-9 ? Math.sin(Math.PI * f) : 0;
+            b.rect.setAttribute("fill-opacity", 0.85 * glow);
+            b.label.style.fill = glow > 0.4 ? "#fff" : C.ink;
+          });
+          ghosts.forEach((g, j) => g.style.opacity = k > j + 2 + 0.02 ? 0.4 : 0);
+          stageLabels.forEach((t, j) => t.style.fill = k >= j + 2 - 1e-9 ? C.muted : "transparent");
+          const head = lerp(pos(from, 1)[0], pos(to, 1)[0], f);
+          progress.setAttribute("x2", Math.max(AX0, head));
+          const done = k >= 4 - 1e-9;
+          ring.style.opacity = picked.style.opacity = miss.style.opacity = done ? 1 : 0;
+        }
+
+        autoplay(fig, render, 4, 1100, 1300);
+      })();
+
+      // Figure 1: pass@k on Terminal-Bench 4 (leaderboard, 66 tasks x 5 trials).
+      (() => {
+        const fig = document.getElementById("fig-passk");
+        const svg = fig.querySelector(":scope > svg");
+        const series = [
+          { name: "Fable 5.1", color: "#a3472f", values: [0.5788, 0.7000, 0.7470, 0.7727, 0.7879] },
+          { name: "GPT-6 Astra", color: "#3d5a80", values: [0.5818, 0.6485, 0.6788, 0.6970, 0.7121] },
+        ];
+        const W = 680, H = 380, m = { top: 20, right: 150, bottom: 52, left: 56 };
+        const yMin = 0.55, yMax = 0.80;
+        const x = k => m.left + (k - 1) / 4 * (W - m.left - m.right);
+        const y = v => H - m.bottom - (v - yMin) / (yMax - yMin) * (H - m.top - m.bottom);
+        const el = svgMaker(svg);
+        const pct = v => (100 * v).toFixed(1) + "%";
+
+        const grid = el("g", { class: "grid" });
+        for (let v = 0.55; v <= 0.8001; v += 0.05) {
+          el("line", { x1: m.left, x2: W - m.right, y1: y(v), y2: y(v) }, grid);
+          el("text", { x: m.left - 10, y: y(v) + 5, "text-anchor": "end", "font-size": 14 }).textContent = Math.round(v * 100) + "%";
+        }
+        const axis = el("g", { class: "axis" });
+        el("line", { x1: m.left, x2: W - m.right, y1: H - m.bottom, y2: H - m.bottom }, axis);
+        for (let k = 1; k <= 5; k++)
+          el("text", { x: x(k), y: H - m.bottom + 22, "text-anchor": "middle", "font-size": 14 }).textContent = k;
+        el("text", { x: (m.left + W - m.right) / 2, y: H - 8, "text-anchor": "middle", "font-size": 15 }).textContent = "k (attempts per task)";
+        el("text", { x: 16, y: (m.top + H - m.bottom) / 2, "text-anchor": "middle", "font-size": 15,
+                     transform: `rotate(-90 16 ${(m.top + H - m.bottom) / 2})` }).textContent = "pass@k";
+
+        const drawn = series.map(s => {
+          const g = el("g", { class: "series" });
+          const path = el("path", { stroke: s.color }, g);
+          const dots = s.values.map((v, i) => {
+            const c = el("circle", { cx: x(i + 1), cy: y(v), r: 5, fill: s.color }, g);
+            c.addEventListener("mouseenter", () => showTip(fig, svg, W, x(i + 1), y(v),
+              `<strong>${s.name}</strong><br>pass@${i + 1} = ${pct(v)}` +
+              (i ? `<br>+${(100 * (v - s.values[0])).toFixed(1)} over pass@1` : "")));
+            c.addEventListener("mouseleave", () => hideTip(fig));
+            return c;
+          });
+          const label = el("text", { class: "gap-label", fill: s.color, "font-size": 15 }, g);
+          label.style.fill = s.color;
+          return { s, path, dots, label };
+        });
+
+        // pass@k at a fractional k, linear between the measured points.
+        const at = (vals, k) => {
+          const i = Math.min(Math.floor(k), 4), f = k - i;
+          return k >= vals.length ? vals[vals.length - 1] : vals[i - 1] + f * (vals[i] - vals[i - 1]);
+        };
+
+        // Draws both curves up to k, where k runs continuously from 1 to 5.
+        function render(k) {
+          // Keep the two end labels at least 20px apart, higher value on top.
+          const ys = drawn.map(({ s }) => y(at(s.values, k)));
+          const [hi, lo] = ys[0] <= ys[1] ? [0, 1] : [1, 0];
+          if (ys[lo] - ys[hi] < 20) {
+            const mid = (ys[lo] + ys[hi]) / 2;
+            ys[hi] = mid - 10;
+            ys[lo] = mid + 10;
+          }
+          drawn.forEach(({ s, path, dots, label }, j) => {
+            const pts = s.values.slice(0, Math.floor(k)).map((v, i) => [x(i + 1), y(v)]);
+            if (k % 1) pts.push([x(k), y(at(s.values, k))]);
+            path.setAttribute("d", pts.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join(""));
+            dots.forEach((d, i) => d.style.opacity = i + 1 <= k + 1e-9 ? 1 : 0);
+            // The gain shown is the one at the last whole k reached, so the
+            // number only changes when the line arrives at a point.
+            const kd = Math.floor(k + 1e-9);
+            const gain = 100 * (s.values[kd - 1] - s.values[0]);
+            label.setAttribute("x", x(k) + 12);
+            label.setAttribute("y", ys[j] + 5);
+            label.textContent = kd === 1 ? s.name : `${s.name}  +${gain.toFixed(1)}`;
+          });
+        }
+
+        autoplay(fig, render, 5);
+      })();
+
+      // Figure 2: V1 vs pass@N on LCBv6 / GPT-OSS-20B (the paper's Figure 1b).
+      // Top-1 accuracy over all 131 questions; sd across 18/19/20 V1 runs.
+      (() => {
+        const fig = document.getElementById("fig-v1gap");
+        const svg = fig.querySelector(":scope > svg");
+        const el = svgMaker(svg);
+        const N = [8, 32, 128];
+        const v1 = [76.93, 78.18, 78.89], sd = [1.22, 1.51, 1.59], runs = [18, 19, 20];
+        const passN = [81.68, 87.02, 90.08];
+        const pass1 = 63.68;
+        const css = getComputedStyle(document.documentElement);
+        const V1C = css.getPropertyValue("--v1").trim(), ORC = css.getPropertyValue("--ink-soft").trim();
+        const W = 680, H = 380, m = { top: 20, right: 40, bottom: 52, left: 56 };
+        const yMin = 60, yMax = 93;
+        const x = k => m.left + 40 + (k - 1) / 2 * (W - m.left - m.right - 80);
+        const y = v => H - m.bottom - (v - yMin) / (yMax - yMin) * (H - m.top - m.bottom);
+
+        const grid = el("g", { class: "grid" });
+        for (let v = 60; v <= 90; v += 10) {
+          el("line", { x1: m.left, x2: W - m.right, y1: y(v), y2: y(v) }, grid);
+          el("text", { x: m.left - 10, y: y(v) + 5, "text-anchor": "end", "font-size": 14 }).textContent = v + "%";
+        }
+        const axis = el("g", { class: "axis" });
+        el("line", { x1: m.left, x2: W - m.right, y1: H - m.bottom, y2: H - m.bottom }, axis);
+        N.forEach((n, i) => el("text", { x: x(i + 1), y: H - m.bottom + 22, "text-anchor": "middle", "font-size": 14 }).textContent = n);
+        el("text", { x: (m.left + W - m.right) / 2, y: H - 8, "text-anchor": "middle", "font-size": 15 }).textContent = "Number of candidates (N)";
+        el("text", { x: 16, y: (m.top + H - m.bottom) / 2, "text-anchor": "middle", "font-size": 15,
+                     transform: `rotate(-90 16 ${(m.top + H - m.bottom) / 2})` }).textContent = "Accuracy";
+
+        // pass@1: the expected accuracy of picking a candidate at random.
+        el("line", { x1: m.left, x2: W - m.right, y1: y(pass1), y2: y(pass1), stroke: "var(--ink-faint)",
+                     "stroke-width": 1.6, "stroke-dasharray": "2 4" });
+
+        const band = el("path", { fill: V1C, "fill-opacity": 0.12, stroke: "none" });
+        const oraclePath = el("path", { fill: "none", stroke: ORC, "stroke-width": 2, "stroke-dasharray": "6 4" });
+        const v1Path = el("path", { fill: "none", stroke: V1C, "stroke-width": 2.5 });
+
+        const bars = v1.map((v, i) => {
+          const g = el("g", { stroke: V1C, "stroke-width": 1.6 });
+          el("line", { x1: x(i + 1), x2: x(i + 1), y1: y(v - sd[i]), y2: y(v + sd[i]) }, g);
+          for (const e of [v - sd[i], v + sd[i]]) el("line", { x1: x(i + 1) - 6, x2: x(i + 1) + 6, y1: y(e), y2: y(e) }, g);
+          return g;
+        });
+        const point = (v, i, attrs, html) => {
+          const c = el("circle", { cx: x(i + 1), cy: y(v), r: 5.5, ...attrs });
+          c.addEventListener("mouseenter", () => showTip(fig, svg, W, x(i + 1), y(v), html));
+          c.addEventListener("mouseleave", () => hideTip(fig));
+          return c;
+        };
+        const oracleDots = passN.map((v, i) => point(v, i,
+          { fill: "var(--paper)", stroke: ORC, "stroke-width": 2 },
+          `<strong>pass@${N[i]}</strong> = ${v.toFixed(1)}%`));
+        const v1Dots = v1.map((v, i) => point(v, i, { fill: V1C },
+          `<strong>V<sub>1</sub>, N = ${N[i]}</strong><br>selected: ${v.toFixed(1)}% ± ${sd[i].toFixed(1)} (${runs[i]} runs)` +
+          `<br>gap to pass@${N[i]}: ${(passN[i] - v).toFixed(1)} pts`));
+        const gapLabels = v1.map((v, i) => {
+          const t = el("text", { x: x(i + 1) + 12, y: y((v + passN[i]) / 2) + 5, "font-size": 15, class: "gap-label" });
+          t.style.fill = V1C;
+          t.textContent = `${Math.round(passN[i] - v)} pts`;
+          return t;
+        });
+        el("text", { x: W - m.right, y: y(pass1) - 8, "text-anchor": "end", "font-size": 13 }).textContent =
+          `pass@1 = ${pass1.toFixed(1)}% (random pick)`;
+
+        const at = (vals, k) => {
+          const i = Math.min(Math.floor(k), 2), f = k - i;
+          return k >= vals.length ? vals[vals.length - 1] : vals[i - 1] + f * (vals[i] - vals[i - 1]);
+        };
+        const line = (vals, k) => {
+          const pts = vals.slice(0, Math.floor(k + 1e-9)).map((v, i) => [x(i + 1), y(v)]);
+          if (k % 1 > 1e-9) pts.push([x(k), y(at(vals, k))]);
+          return pts;
+        };
+        const d = pts => pts.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join("");
+
+        // Draws both curves and the gap between them up to k (1 = N of 8, 3 = N of 128).
+        function render(k) {
+          const top = line(passN, k), bottom = line(v1, k);
+          oraclePath.setAttribute("d", d(top));
+          v1Path.setAttribute("d", d(bottom));
+          band.setAttribute("d", top.length > 1 ? d([...top, ...bottom.reverse()]) + "Z" : "");
+          const reached = i => i + 1 <= k + 1e-9;
+          [oracleDots, v1Dots, bars, gapLabels].forEach(group =>
+            group.forEach((e, i) => e.style.opacity = reached(i) ? 1 : 0));
+        }
+
+        autoplay(fig, render, 3, 450, 800);
+      })();
+
+      // Close the narrow-screen table of contents after picking a section.
+      document.querySelectorAll(".toc-inline a").forEach(a =>
+        a.addEventListener("click", () => document.querySelector(".toc-inline").open = false));
+    </script>
+  </body>
+</html>
