@@ -355,11 +355,23 @@
         <p><strong>Larger groups reduce variance, but can increase bias.</strong> Having multiple candidates in the context also reduces variance faster because fewer calls ($N/K$) are needed per scoring round, allowing each candidate's score to be averaged over more evaluations within the same cost budget. However, these variance reductions can come at the expense of bias: on LCBv6, increasing the group size to $K=8$ raises bias, potentially because comparing more candidates in a single context is harder. We therefore use $K=4$ as the default to balance these effects.</p>
         <h3 id="how-grouped">How should candidates be grouped?</h3>
         <p>In the procedure above, we form groups randomly. However, recent algorithms have also proposed tournament strategies for building groups. We therefore compare <span class="sc">Scorpio</span>'s scoring with V<sub>1</sub>'s (<a href="https://arxiv.org/abs/2603.04304">Singh et al., 2026</a>) tournament-based pairing and pointwise scoring.</p>
+        <figure class="chart" id="fig-grouping">
+          <div class="chart-controls">
+            <div class="legend">
+              <span><i class="dot" style="background:var(--correct)"></i>correct</span>
+              <span><i class="dot" style="background:var(--incorrect)"></i>incorrect</span>
+              <span><i class="dot" style="background:none;border:1.3px solid var(--ink);border-radius:3px;width:16px"></i>one judge call</span>
+            </div>
+            <button type="button" class="replay"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 6a4 4 0 1 1-1.2-2.85"/><path d="M9.4 1.2v2.4H7"/></svg>Replay</button>
+          </div>
+          <svg viewBox="0 0 1000 830" role="img" aria-label="Eight candidates scored over two rounds: pointwise scores each alone, V1 pairs candidates with similar scores, and Scorpio scores random groups of four that are reshuffled every round"></svg>
+          <figcaption>How each method groups candidates into judge calls. Pointwise scoring judges every candidate on its own. V<sub>1</sub> runs a tournament: first-round pairs are random, then candidates with similar scores face each other. <span class="sc">Scorpio</span> scores random groups of $K=4$ and reshuffles them every round. Bars show each candidate's average score so far.</figcaption>
+        </figure>
+        <p><strong>Random grouping reduces variance faster, while tournament pairing can lower bias.</strong> In the figure below, we see that <span class="sc">Scorpio</span> achieves similar or lower ranking error (right) compared to V<sub>1</sub> and pointwise scoring. However, its bias-variance decomposition differs from that of V<sub>1</sub>, which pairs similarly scoring candidates with each other. V<sub>1</sub> consistently shows higher variance than <span class="sc">Scorpio</span>, likely because these comparisons are harder than the random comparisons that <span class="sc">Scorpio</span> makes. However, V<sub>1</sub>'s strategy can help lower bias, as seen on LCBv6, where it attains lower bias than <span class="sc">Scorpio</span>.</p>
         <figure>
           <img src="figs/biasvar_methods.svg" alt="Bias squared, variance, and ranking error versus cost per question for pointwise, V1 pairwise, and Scorpio (K=4) on HMMT 25 and LCBv6 with GPT-OSS-20B">
           <figcaption>Squared bias, variance, and ranking error as inference compute grows, for pointwise scoring, V<sub>1</sub>'s tournament-based pairwise scoring, and <span class="sc">Scorpio</span> ($K = 4$), using GPT-OSS-20B on HMMT (math) and LCBv6 (code). <span class="sc">Scorpio</span> reduces variance faster, while V<sub>1</sub>'s pairing can lower bias.</figcaption>
         </figure>
-        <p><strong>Random grouping reduces variance faster, while tournament pairing can lower bias.</strong> From the figure above, we see that <span class="sc">Scorpio</span> achieves similar or lower ranking error (right) compared to V<sub>1</sub> and pointwise scoring. However, its bias-variance decomposition differs from that of V<sub>1</sub>, which pairs similarly scoring candidates with each other. V<sub>1</sub> consistently shows higher variance than <span class="sc">Scorpio</span>, likely because these comparisons are harder than the random comparisons that <span class="sc">Scorpio</span> makes. However, V<sub>1</sub>'s strategy can help lower bias, as seen on LCBv6, where it attains lower bias than <span class="sc">Scorpio</span>.</p>
 
         <h2 id="top1">Tying back to top-1 accuracy</h2>
         <p>Until now, we have seen that <span class="sc">Scorpio</span> can achieve similar or lower ranking error on a few datasets. However, as highlighted above, ranking error penalizes mistakes throughout the ranking, while verification only requires the top-ranked candidate to be correct. To ensure that the benefits in ranking error translate to top-1 accuracy, we compare <span class="sc">Scorpio</span>, V<sub>1</sub>, and pointwise scoring across two models and three datasets below, and see that <span class="sc">Scorpio</span> scales better than the baselines while being arguably simpler.</p>
@@ -601,6 +613,219 @@
         }
 
         autoplay(fig, render, 4, 1100, 1300);
+      })();
+
+      // How candidates are grouped into judge calls: a schematic, not data.
+      // Eight candidates are scored over two rounds by pointwise scoring, V1's
+      // tournament pairing and Scorpio's random groups. Lanes play one at a time.
+      (() => {
+        const fig = document.getElementById("fig-grouping");
+        const svg = fig.querySelector(":scope > svg");
+        const make = svgMaker(svg);
+        const css = getComputedStyle(document.documentElement);
+        const tok = name => css.getPropertyValue(name).trim();
+        const C = { ok: tok("--correct"), bad: tok("--incorrect"), ink: tok("--ink"), soft: tok("--ink-soft"), muted: tok("--ink-muted"), faint: tok("--ink-faint"), rule: tok("--rule"), box: tok("--hover") };
+        // Text colour goes on style, since the chart stylesheet sets text fill.
+        const el = (tag, attrs = {}, parent = svg) => {
+          const { fill, ...rest } = attrs;
+          const e = make(tag, tag === "text" || tag === "tspan" ? rest : attrs, parent);
+          if (tag === "text" || tag === "tspan") e.style.fill = fill || C.ink;
+          return e;
+        };
+        // ---- schematic data (not real results) ----
+        const IDS = [1, 2, 3, 4, 5, 6, 7, 8];
+        const correct = { 1: true, 2: false, 3: true, 4: false, 5: false, 6: true, 7: false, 8: true };
+        const quality = { 1: 0.82, 2: 0.40, 3: 0.74, 4: 0.66, 5: 0.30, 6: 0.70, 7: 0.22, 8: 0.55 };
+        let seed = 7;
+        const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+        const ROUNDS = 2;
+
+        // Running average score after each round, per lane.
+        function runScores(noise, q = quality) {
+          const sums = Object.fromEntries(IDS.map(i => [i, 0]));
+          const out = [];
+          for (let r = 0; r < ROUNDS; r++) {
+            IDS.forEach(i => sums[i] += Math.min(1, Math.max(0.05, q[i] + noise * (rand() * 2 - 1))));
+            out.push(Object.fromEntries(IDS.map(i => [i, sums[i] / (r + 1)])));
+          }
+          return out;
+        }
+        const byScore = s => [...IDS].sort((a, b) => s[b] - s[a] || a - b);
+
+        // Groups (judge calls) per round, per lane.
+        const lanes = [];
+        { // Pointwise: every candidate alone.
+          const scores = runScores(0.28);
+          const groups = [0, 1].map(() => IDS.map(i => [i]));
+          lanes.push({ title: "Pointwise", sub: "one solution per judge call",
+            prompt: ["“How good is this solution? Score 1–10.”"], scores, groups });
+        }
+        { // V1 as a tournament: random pairs first; then sort by current score and pair
+          // neighbours, so candidates with similar scores face each other. The judge need not
+          // agree with correctness: here two incorrect candidates (2 and 4) get long bars,
+          // just below the top two correct ones.
+          const judged = { 1: 0.88, 6: 0.82, 2: 0.74, 4: 0.70, 3: 0.58, 8: 0.52, 5: 0.35, 7: 0.20 };
+          const scores = runScores(0.08, judged), groups = [];
+          for (let r = 0; r < ROUNDS; r++) {
+            const order = r === 0 ? shuffle(IDS) : byScore(scores[r - 1]);
+            groups.push([0, 2, 4, 6].map(k => [order[k], order[k + 1]]));
+          }
+          lanes.push({ title: "V\u2081", titleSub: "(Singh et al., 2026)", sub: "similar-scoring candidates face each other",
+            prompt: ["“Score these 2 solutions, 1–10 each.”"], scores, groups });
+        }
+        { // Scorpio: fresh random partition into groups of 4 every round.
+          const scores = runScores(0.18);
+          const groups = [];
+          for (let r = 0; r < ROUNDS; r++) { const o = shuffle(IDS); groups.push([o.slice(0, 4), o.slice(4)]); }
+          lanes.push({ title: "SCORPIO", sub: "random groups of 4, reshuffled every round",
+            prompt: ["“Score these 4 solutions, 1–10 each.”"], scores, groups });
+        }
+
+        // ---- layout ----
+        const LANE_Y = [58, 304, 550], LANE_H = 236;
+        const POOL_X = 300, ROUND_X = [480, 680], DOTS_COL = 860, DOTS_X = 905;
+        const R = 8, PITCH = 19, BAR_GAP = 12, BAR_MAX = 46;
+
+        // Vertical positions of each candidate within a round column (boxes stacked).
+        function columnLayout(groups) {
+          const single = groups[0].length === 1, PAD = single ? 3 : 5, GAP = single ? 4 : 7;
+          const total = groups.reduce((h, g) => h + g.length * PITCH + 2 * PAD, 0) + GAP * (groups.length - 1);
+          let y = (LANE_H - total) / 2;
+          const pos = {}, boxes = [];
+          groups.forEach(g => {
+            const h = g.length * PITCH + 2 * PAD;
+            boxes.push([y, h]);
+            g.forEach((id, k) => pos[id] = y + PAD + PITCH * (k + 0.5));
+            y += h + GAP;
+          });
+          return { pos, boxes };
+        }
+        const poolPos = id => { const k = id - 1; return [POOL_X + (k % 2) * 26, 58 + Math.floor(k / 2) * 30]; };
+
+        // Static frame: titles, prompts, separators, axis.
+        lanes.forEach((L, li) => {
+          const g = el("g", { transform: `translate(0,${LANE_Y[li]})` });
+          L.g = g;
+          if (li > 0) el("line", { x1: 20, x2: 980, y1: -14, y2: -14, stroke: C.rule, "stroke-width": 1.2 }, g);
+          const t = el("text", { x: 24, y: 30, "font-size": 23 }, g);
+          if (L.title === "SCORPIO") {
+            t.innerHTML = '<tspan>S</tspan><tspan font-size="17">CORPIO</tspan>';
+          } else {
+            t.textContent = L.title;
+            if (L.titleSub) { const s = el("tspan", { "font-size": 14, fill: C.muted, dx: 6 }, t); s.textContent = L.titleSub; }
+          }
+          const sub = el("text", { x: 24, y: 52, "font-size": 15, fill: C.muted }, g); sub.textContent = L.sub;
+          // Judge prompt bubble.
+          el("rect", { x: 20, y: 72, width: 250, height: 48, rx: 8, fill: C.box, stroke: C.rule }, g);
+          const lab = el("text", { x: 32, y: 92, "font-size": 12.5, fill: C.muted, "letter-spacing": 0.6 }, g); lab.textContent = "JUDGE PROMPT";
+          L.prompt.forEach((line, k) => { const p = el("text", { x: 32, y: 111 + k * 17, "font-size": 15, "font-style": "italic", fill: C.soft }, g); p.textContent = line; });
+          // Pool.
+          const pl = el("text", { x: POOL_X + 13, y: 34, "text-anchor": "middle", "font-size": 13, fill: C.muted }, g); pl.textContent = "Candidates";
+        });
+        // Round labels above the first lane.
+        ROUND_X.forEach((x, r) => { const t = el("text", { x: x + 14, y: 40, "text-anchor": "middle", "font-size": 15, fill: C.muted }); t.textContent = `Round ${r + 1}`; });
+
+        lanes.forEach(L => { const d = el("text", { x: DOTS_COL, y: LANE_H / 2 + 9, "text-anchor": "middle", "font-size": 30, fill: C.muted, opacity: 0 }, L.g); d.textContent = "⋯"; L.dots = d; });
+        // Compute axis.
+        const AX0 = 280, AX1 = 940, AY = 810;
+        el("line", { x1: AX0, x2: AX1, y1: AY, y2: AY, stroke: C.rule, "stroke-width": 3 });
+        el("path", { d: `M${AX1 + 12},${AY} l-12,-6 v12 z`, fill: C.rule });
+        const progress = el("line", { x1: AX0, x2: AX0, y1: AY, y2: AY, stroke: C.faint, "stroke-width": 3 });
+        el("text", { x: 152, y: AY + 5, "text-anchor": "middle", "font-size": 16, fill: C.soft }).textContent = "Inference compute →";
+
+        // Per-lane per-round boxes + ghost copies, and the moving candidates.
+        const candidate = (id, parent) => {
+          const g = el("g", {}, parent);
+          const bar = el("rect", { x: BAR_GAP, y: -4.5, height: 9, rx: 2.5, width: 0, fill: correct[id] ? C.ok : C.bad, "fill-opacity": 0.5 }, g);
+          el("circle", { r: R, fill: correct[id] ? C.ok : C.bad }, g);
+          return { id, g, bar };
+        };
+        const place = (c, x, y, w) => { c.g.setAttribute("transform", `translate(${x},${y})`); c.bar.setAttribute("width", Math.max(0, w)); };
+
+        lanes.forEach(L => {
+          L.cols = L.groups.map(gr => columnLayout(gr));
+          L.boxG = L.cols.map((col, r) => {
+            const g = el("g", { opacity: 0 }, L.g);
+            col.boxes.forEach(([y, h]) => el("rect", { x: ROUND_X[r] - R - 6, y, width: R + BAR_GAP + BAR_MAX + 18, height: h, rx: 6, fill: "none", stroke: C.ink, "stroke-width": 1.2 }, g));
+            return g;
+          });
+          L.ghosts = L.cols.map((col, r) => {
+            const g = el("g", { opacity: 0 }, L.g);
+            IDS.forEach(id => place(candidate(id, g), ROUND_X[r], col.pos[id], BAR_MAX * L.scores[r][id]));
+            return g;
+          });
+          IDS.forEach(id => { const [x, y] = poolPos(id); place(candidate(id, L.g), x, y, 0); });
+          L.moving = IDS.map(id => candidate(id, L.g));
+        });
+
+        // ---- timeline ----
+        // Lanes play one after another. Each round: move, bars grow, hold.
+        const MOVE = 0.9, GROW = 0.5, HOLD = 0.5, STEP = MOVE + GROW + HOLD, START = 0.8, GAP_T = 0.9;
+        const LANE_T = ROUNDS * STEP + GAP_T, FADE = 0.35, DIM = 0.3;
+        const ease = f => f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+        const clamp = f => Math.max(0, Math.min(1, f));
+        const lerp = (a, b, f) => a + (b - a) * f;
+        const PLAY_END = START + lanes.length * LANE_T;
+        const DURATION = PLAY_END + 3.0;
+
+        function renderLane(L, tt) {            // tt: seconds since this lane started (<0: not yet)
+          const r = Math.max(0, Math.min(ROUNDS - 1, Math.floor(tt / STEP)));
+          const local = tt - r * STEP;
+          const fMove = tt < 0 ? 0 : ease(clamp(local / MOVE));
+          const fGrow = tt < 0 ? 0 : ease(clamp((local - MOVE) / GROW));
+          L.moving.forEach(c => {
+            const id = c.id;
+            const [x0, y0] = r === 0 ? poolPos(id) : [ROUND_X[r - 1], L.cols[r - 1].pos[id]];
+            const x1 = ROUND_X[r], y1 = L.cols[r].pos[id];
+            const w0 = r === 0 ? 0 : BAR_MAX * L.scores[r - 1][id], w1 = BAR_MAX * L.scores[r][id];
+            place(c, lerp(x0, x1, fMove), lerp(y0, y1, fMove), lerp(w0, w1, fGrow));
+          });
+          L.boxG.forEach((g, k) => g.setAttribute("opacity", tt < 0 ? 0 : k < r ? 0.22 : k === r ? clamp((local - MOVE * 0.6) / 0.3) : 0));
+          L.ghosts.forEach((g, k) => g.setAttribute("opacity", tt >= 0 && k < r ? 0.22 : 0));
+          return tt < 0 ? AX0 : lerp(r === 0 ? AX0 : ROUND_X[r - 1] + 14, ROUND_X[r] + 14, fMove);
+        }
+
+        const render = t => {
+          const active = Math.min(lanes.length - 1, Math.max(0, Math.floor((t - START) / LANE_T)));
+          const allOn = clamp((t - PLAY_END + 0.2) / FADE);
+          let head = AX0;
+          lanes.forEach((L, li) => {
+            const tt = t - START - li * LANE_T;
+            const h = renderLane(L, tt);
+            if (li === active) head = h;
+            // Focus: the playing lane at full strength, the others dimmed; all back on at the end.
+            const on = s => clamp((t - s + FADE) / FADE);
+            const s0 = START + li * LANE_T, s1 = s0 + LANE_T;
+            const w = on(s0) - (li < lanes.length - 1 ? on(s1) : 0);
+            const pre = 1 - on(START);
+            L.g.setAttribute("opacity", Math.max(pre, DIM + (1 - DIM) * w, allOn));
+            L.dots.setAttribute("opacity", clamp((tt - ROUNDS * STEP + 0.1) / 0.4));
+            if (li === active) head = lerp(head, DOTS_COL, clamp((tt - ROUNDS * STEP + 0.1) / 0.4));
+          });
+          progress.setAttribute("x2", head);
+        };
+
+        let frame = null;
+        const play = () => {
+          cancelAnimationFrame(frame);
+          if (reduced) return render(DURATION);
+          let t0 = null;
+          const step = now => {
+            if (t0 === null) t0 = now;
+            const t = (now - t0) / 1000;
+            render(Math.min(t, DURATION));
+            if (t < DURATION) frame = requestAnimationFrame(step);
+          };
+          frame = requestAnimationFrame(step);
+        };
+        fig.querySelector(".replay").addEventListener("click", play);
+        render(DURATION);
+        let armed = true;
+        new IntersectionObserver(([e]) => {
+          if (e.intersectionRatio >= 0.5 && armed) { armed = false; play(); }
+          else if (!e.isIntersecting && !reduced) { armed = true; cancelAnimationFrame(frame); render(0); }
+        }, { threshold: [0, 0.5] }).observe(fig);
       })();
 
       // Figure 1: pass@k on Terminal-Bench 4 (leaderboard, 66 tasks x 5 trials).
